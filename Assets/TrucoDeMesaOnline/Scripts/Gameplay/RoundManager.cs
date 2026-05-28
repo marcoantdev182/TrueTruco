@@ -18,6 +18,11 @@ namespace TrucoDeMesaOnline
             get { return currentTrick.Count; }
         }
 
+        public IReadOnlyList<PlayedCard> CurrentTrick
+        {
+            get { return currentTrick; }
+        }
+
         public void StartRound(Dictionary<SeatId, List<Card>> dealtHands, Card vira)
         {
             handsBySeat.Clear();
@@ -69,6 +74,32 @@ namespace TrucoDeMesaOnline
             playedCard = new PlayedCard(seat, card, currentTrick.Count);
             currentTrick.Add(playedCard);
             return true;
+        }
+
+        public bool TryGetCurrentTrickLeader(out PlayedCard leader)
+        {
+            leader = new PlayedCard();
+
+            if (currentTrick.Count == 0)
+            {
+                return false;
+            }
+
+            leader = currentTrick[0];
+            for (int i = 1; i < currentTrick.Count; i++)
+            {
+                if (CardValueResolver.Compare(currentTrick[i].Card, leader.Card, Vira) > 0)
+                {
+                    leader = currentTrick[i];
+                }
+            }
+
+            return true;
+        }
+
+        public int GetTricksWon(TeamId team)
+        {
+            return tricksWonByTeam[(int)team];
         }
 
         public TrickResult ResolveCurrentTrick()

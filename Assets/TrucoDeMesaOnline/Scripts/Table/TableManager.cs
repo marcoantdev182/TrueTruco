@@ -6,6 +6,7 @@ namespace TrucoDeMesaOnline
     public sealed class TableManager : MonoBehaviour
     {
         private readonly Dictionary<SeatId, GestureController> avatarGestures = new Dictionary<SeatId, GestureController>();
+        private readonly Dictionary<SeatId, List<PlayingCardView>> hiddenSeatCards = new Dictionary<SeatId, List<PlayingCardView>>();
         private readonly List<PlayingCardView> playedCardViews = new List<PlayingCardView>();
 
         private Transform generatedRoot;
@@ -57,6 +58,31 @@ namespace TrucoDeMesaOnline
             playedCardViews.Add(view);
         }
 
+        public void SetSeatHiddenCardCount(SeatId seat, int cardCount)
+        {
+            if (seat == SeatId.LocalPlayer)
+            {
+                return;
+            }
+
+            ClearSeatHiddenCards(seat);
+
+            List<PlayingCardView> cards = new List<PlayingCardView>();
+            hiddenSeatCards[seat] = cards;
+
+            for (int i = 0; i < cardCount; i++)
+            {
+                GameObject cardObject = new GameObject("Hidden Card " + (i + 1) + " - " + SeatUtility.GetShortName(seat));
+                cardObject.transform.SetParent(cardsRoot, false);
+                cardObject.transform.position = GetHiddenHandCardPosition(seat, i, cardCount);
+                cardObject.transform.rotation = Quaternion.Euler(0f, GetPlayedCardYaw(seat), 0f);
+
+                PlayingCardView view = cardObject.AddComponent<PlayingCardView>();
+                view.Initialize(new Card(Rank.Four, Suit.Clubs), false);
+                cards.Add(view);
+            }
+        }
+
         public void ClearPlayedCards()
         {
             for (int i = 0; i < playedCardViews.Count; i++)
@@ -73,11 +99,39 @@ namespace TrucoDeMesaOnline
         public void ClearAllCards()
         {
             ClearPlayedCards();
+            ClearAllHiddenCards();
 
             if (viraView != null)
             {
                 DestroyObject(viraView.gameObject);
                 viraView = null;
+            }
+        }
+
+        private void ClearSeatHiddenCards(SeatId seat)
+        {
+            if (!hiddenSeatCards.TryGetValue(seat, out List<PlayingCardView> cards))
+            {
+                return;
+            }
+
+            for (int i = 0; i < cards.Count; i++)
+            {
+                if (cards[i] != null)
+                {
+                    DestroyObject(cards[i].gameObject);
+                }
+            }
+
+            hiddenSeatCards.Remove(seat);
+        }
+
+        private void ClearAllHiddenCards()
+        {
+            List<SeatId> seats = new List<SeatId>(hiddenSeatCards.Keys);
+            for (int i = 0; i < seats.Count; i++)
+            {
+                ClearSeatHiddenCards(seats[i]);
             }
         }
 
@@ -319,6 +373,24 @@ namespace TrucoDeMesaOnline
                     return new Vector3(-0.52f, y, 0f);
                 default:
                     return new Vector3(0f, y, 0f);
+            }
+        }
+
+        private Vector3 GetHiddenHandCardPosition(SeatId seat, int index, int count)
+        {
+            float y = GameConstants.TableHeight + 0.11f;
+            float offset = (index - (count - 1) * 0.5f) * 0.22f;
+
+            switch (seat)
+            {
+                case SeatId.RightRival:
+                    return new Vector3(0.98f, y, offset);
+                case SeatId.Partner:
+                    return new Vector3(offset, y, 0.98f);
+                case SeatId.LeftRival:
+                    return new Vector3(-0.98f, y, offset);
+                default:
+                    return new Vector3(offset, y, -0.98f);
             }
         }
 

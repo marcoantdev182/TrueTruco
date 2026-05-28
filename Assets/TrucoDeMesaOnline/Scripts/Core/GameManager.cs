@@ -12,6 +12,7 @@ namespace TrucoDeMesaOnline
         private SeatManager seatManager;
         private TableManager tableManager;
         private PlayerController playerController;
+        private BotManager botManager;
         private DeckManager deckManager;
         private HandManager handManager;
         private RoundManager roundManager;
@@ -66,6 +67,7 @@ namespace TrucoDeMesaOnline
             seatManager = GetOrCreateChildManager<SeatManager>("Seat Manager");
             tableManager = GetOrCreateChildManager<TableManager>("Table Manager");
             playerController = GetOrCreateChildManager<PlayerController>("Player Controller");
+            botManager = GetOrCreateChildManager<BotManager>("Bot Manager");
             deckManager = GetOrCreateChildManager<DeckManager>("Deck Manager");
             handManager = GetOrCreateChildManager<HandManager>("Hand Manager");
             roundManager = GetOrCreateChildManager<RoundManager>("Round Manager");
@@ -94,6 +96,7 @@ namespace TrucoDeMesaOnline
         {
             seatManager.BuildSeats(transform);
             tableManager.BuildLocalTable(seatManager);
+            botManager.BuildLocalBots();
 
             Camera camera = GetOrCreatePlayerCamera();
             playerController.InitializeLocalPlayer(seatManager.GetSeat(SeatId.LocalPlayer), camera);
@@ -160,6 +163,7 @@ namespace TrucoDeMesaOnline
             uiManager.SetVira(vira);
 
             handManager.SetLocalHand(roundManager.GetHand(SeatId.LocalPlayer));
+            RefreshBotHandViews();
             turnManager.SetCurrentSeat(SeatId.LocalPlayer);
 
             uiManager.SetStatus("Nova rodada. Sua vez de abrir.");
@@ -196,6 +200,7 @@ namespace TrucoDeMesaOnline
             }
 
             tableManager.PlacePlayedCard(playedCard);
+            RefreshHiddenHandView(seat);
             Debug.Log("[Card] " + SeatUtility.GetDisplayName(seat) + " jogou " + playedCard.Card.DisplayName + ".");
 
             if (seat == SeatId.LocalPlayer)
@@ -266,122 +271,63 @@ namespace TrucoDeMesaOnline
                 return;
             }
 
+            if (!botManager.IsBotSeat(turnManager.CurrentSeat))
+            {
+                return;
+            }
+
             StopBotTurn();
             botTurnRoutine = StartCoroutine(BotTurnRoutine(turnManager.CurrentSeat));
         }
 
         private IEnumerator BotTurnRoutine(SeatId botSeat)
         {
-            uiManager.SetStatus(SeatUtility.GetDisplayName(botSeat) + " pensando...");
+            if (!botManager.TryGetBot(botSeat, out BotPlayerController bot))
+            {
+                yield break;
+            }
+
+            uiManager.SetStatus(bot.DisplayName + " pensando...");
             yield return new WaitForSeconds(0.25f);
 
-            TrySendBotSignal(botSeat);
+            TrySendBotSignal(bot);
+
+            yield return new WaitForSeconds(0.25f);
+
+            TryBotAskTruco(bot);
 
             yield return new WaitForSeconds(GameConstants.BotPlayDelay);
 
             if (roundManager.IsRoundActive && turnManager.CurrentSeat == botSeat)
             {
-                TryPlayCard(botSeat, 0);
+                int cardIndex = bot.ChooseCardIndex(roundManager);
+                if (cardIndex >= 0)
+                {
+                    TryPlayCard(botSeat, cardIndex);
+                }
             }
         }
 
-        private void TrySendBotSignal(SeatId botSeat)
+        private void TrySendBotSignal(BotPlayerController bot)
         {
-            if (!roundManager.IsRoundActive || botSeat == SeatId.LocalPlayer || UnityEngine.Random.value > 0.72f)
+            if (!roundManager.IsRoundActive || !bot.ShouldSignal(roundManager))
             {
                 return;
             }
 
-            SignalType signal = ChooseBotSignal(botSeat);
-            signalManager.SendSignal(botSeat, signal);
+            SignalType signal = bot.ChooseSignal(roundManager);
+            signalManager.SendSignal(bot.SeatId, signal);
         }
 
-        private SignalType ChooseBotSignal(SeatId botSeat)
+        private void TryBotAskTruco(BotPlayerController bot)
         {
-            IReadOnlyList<Card> botHand = roundManager.GetHand(botSeat);
-            if (UnityEngine.Random.value <= 0.62f && TryChooseTrueSignal(botHand, out SignalType trueSignal))
+            if (!roundManager.IsRoundActive || !bot.ShouldAskTruco(roundManager, scoreManager.CurrentRoundValue))
             {
-                return trueSignal;
+                return;
             }
 
-            return GetRandomSignal();
-        }
-
-        private bool TryChooseTrueSignal(IReadOnlyList<Card> hand, out SignalType signal)
-        {
-            int threeCount = 0;
-
-            for (int i = 0; i < hand.Count; i++)
-            {
-                if (hand[i].Rank == Rank.Three)
-                {
-                    threeCount++;
-                }
-            }
-
-            if (threeCount >= 2)
-            {
-                signal = SignalType.BothShouldersDoubleThree;
-                return true;
-            }
-
-            for (int i = 0; i < hand.Count; i++)
-            {
-                Card card = hand[i];
-                if (CardValueResolver.IsManilha(card, roundManager.Vira))
-                {
-                    signal = GetManilhaSignal(card.Suit);
-                    return true;
-                }
-            }
-
-            for (int i = 0; i < hand.Count; i++)
-            {
-                switch (hand[i].Rank)
-                {
-                    case Rank.Three:
-                        signal = SignalType.OneShoulderThree;
-                        return true;
-                    case Rank.Ace:
-                        signal = SignalType.NoseTouchAce;
-                        return true;
-                    case Rank.King:
-                        signal = SignalType.ChinHandKing;
-                        return true;
-                    case Rank.Queen:
-                        signal = SignalType.EarHandQueen;
-                        return true;
-                    case Rank.Jack:
-                        signal = SignalType.EarToChinJack;
-                        return true;
-                }
-            }
-
-            signal = SignalType.WinkZap;
-            return false;
-        }
-
-        private SignalType GetManilhaSignal(Suit suit)
-        {
-            switch (suit)
-            {
-                case Suit.Clubs:
-                    return SignalType.WinkZap;
-                case Suit.Hearts:
-                    return SignalType.RaiseEyebrowHearts;
-                case Suit.Spades:
-                    return SignalType.PuffCheekSpades;
-                case Suit.Diamonds:
-                    return SignalType.TongueOrNoseDiamonds;
-                default:
-                    return SignalType.WinkZap;
-            }
-        }
-
-        private SignalType GetRandomSignal()
-        {
-            SignalType[] signals = (SignalType[])System.Enum.GetValues(typeof(SignalType));
-            return signals[UnityEngine.Random.Range(0, signals.Length)];
+            int value = scoreManager.RequestTruco(bot.SeatId);
+            uiManager.SetStatus(bot.DisplayName + " pediu Truco. Rodada agora vale " + value + ".");
         }
 
         private void OnSignalClicked(SignalType signal)
@@ -471,6 +417,23 @@ namespace TrucoDeMesaOnline
             uiManager.SetScore(scoreManager.LocalTeamScore, scoreManager.RivalTeamScore, scoreManager.CurrentRoundValue);
             uiManager.SetVira(roundManager.Vira);
             uiManager.SetHandInteractable(roundManager.IsRoundActive && turnManager.IsLocalTurn);
+        }
+
+        private void RefreshBotHandViews()
+        {
+            RefreshHiddenHandView(SeatId.RightRival);
+            RefreshHiddenHandView(SeatId.Partner);
+            RefreshHiddenHandView(SeatId.LeftRival);
+        }
+
+        private void RefreshHiddenHandView(SeatId seat)
+        {
+            if (seat == SeatId.LocalPlayer)
+            {
+                return;
+            }
+
+            tableManager.SetSeatHiddenCardCount(seat, roundManager.GetHand(seat).Count);
         }
 
         private void StopBotTurn()

@@ -16,11 +16,11 @@ namespace TrucoDeMesaOnline
                 case SeatId.LocalPlayer:
                     return "Voce";
                 case SeatId.RightRival:
-                    return "Rival direita";
+                    return "Bot Bia (rival direita)";
                 case SeatId.Partner:
-                    return "Parceiro";
+                    return "Bot Ana (parceiro)";
                 case SeatId.LeftRival:
-                    return "Rival esquerda";
+                    return "Bot Caio (rival esquerda)";
                 default:
                     return seat.ToString();
             }
@@ -33,11 +33,11 @@ namespace TrucoDeMesaOnline
                 case SeatId.LocalPlayer:
                     return "VOCE";
                 case SeatId.RightRival:
-                    return "R DIR";
+                    return "BIA\nR DIR";
                 case SeatId.Partner:
-                    return "PARC";
+                    return "ANA\nPARC";
                 case SeatId.LeftRival:
-                    return "R ESQ";
+                    return "CAIO\nR ESQ";
                 default:
                     return seat.ToString().ToUpperInvariant();
             }
@@ -49,4 +49,3 @@ namespace TrucoDeMesaOnline
         }
     }
 }
-

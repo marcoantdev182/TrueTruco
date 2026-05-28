@@ -36,7 +36,8 @@ A cena tem apenas um `LocalOfflineSceneRoot`. Em runtime ele cria o `GameManager
 - rostos placeholder com olhos, sobrancelhas, boca, nariz, bochechas e lingua;
 - baralho de Truco Paulista com vira e manilha;
 - mao local visivel somente na HUD;
-- bots simples que jogam a primeira carta disponivel;
+- 3 bots com assentos fixos: Ana como parceira, Bia e Caio como rivais;
+- bots com decisao basica de carta: cobrem carta rival quando conseguem, economizam quando a dupla esta ganhando e arriscam mais quando atras;
 - placar e valor da rodada;
 - sinais como eventos de blefe livres;
 - bots que podem fazer sinais antes de jogar; a HUD so mostra que voce viu se a camera estiver apontada para o avatar.
