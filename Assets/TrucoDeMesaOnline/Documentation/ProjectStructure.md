@@ -33,9 +33,15 @@ A cena tem apenas um `LocalOfflineSceneRoot`. Em runtime ele cria o `GameManager
 - quatro assentos fixos;
 - camera no assento `Voce`;
 - avatares placeholder para parceiro e rivais;
+- rostos placeholder com olhos, sobrancelhas, boca, nariz, bochechas e lingua;
 - baralho de Truco Paulista com vira e manilha;
 - mao local visivel somente na HUD;
 - bots simples que jogam a primeira carta disponivel;
 - placar e valor da rodada;
-- sinais como eventos de blefe livres.
+- sinais como eventos de blefe livres;
+- bots que podem fazer sinais antes de jogar; a HUD so mostra que voce viu se a camera estiver apontada para o avatar.
 
+## Atalhos no Editor
+
+- `Truco de Mesa > Create Local MVP Scene`: recria a cena local em `Assets/Scenes`.
+- `Truco de Mesa > Add Local MVP To Current Scene`: adiciona o objeto raiz do MVP na cena atual, util quando o Unity abriu em `Untitled`.

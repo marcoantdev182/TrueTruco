@@ -8,9 +8,11 @@ namespace TrucoDeMesaOnline
         [SerializeField] private Transform head;
         [SerializeField] private Transform leftHand;
         [SerializeField] private Transform rightHand;
+        [SerializeField] private AvatarFaceRig faceRig;
 
         private Vector3 headStartScale;
         private Vector3 headStartLocalPosition;
+        private Quaternion headStartRotation;
         private Vector3 leftHandStart;
         private Vector3 rightHandStart;
         private Coroutine gestureRoutine;
@@ -23,15 +25,34 @@ namespace TrucoDeMesaOnline
             CacheStarts();
         }
 
+        public void AssignFaceRig(AvatarFaceRig rig)
+        {
+            faceRig = rig;
+            CacheStarts();
+        }
+
+        public Vector3 FocusPosition
+        {
+            get
+            {
+                if (head != null)
+                {
+                    return head.position;
+                }
+
+                return transform.position + Vector3.up * 1.5f;
+            }
+        }
+
         public void PlayGesture(SignalType signal)
         {
-            CacheStarts();
-
             if (gestureRoutine != null)
             {
                 StopCoroutine(gestureRoutine);
+                ResetPose();
             }
 
+            CacheStarts();
             gestureRoutine = StartCoroutine(PlayGestureRoutine(signal));
         }
 
@@ -91,6 +112,11 @@ namespace TrucoDeMesaOnline
                     MoveRightHand(Vector3.Lerp(new Vector3(0.28f, 1.62f, 0.05f), new Vector3(0.03f, 1.38f, 0.24f), weight), 1f);
                     break;
             }
+
+            if (faceRig != null)
+            {
+                faceRig.ApplySignalPose(signal, weight);
+            }
         }
 
         private void MoveRightHand(Vector3 target, float weight)
@@ -115,6 +141,7 @@ namespace TrucoDeMesaOnline
             {
                 headStartScale = head.localScale;
                 headStartLocalPosition = head.localPosition;
+                headStartRotation = head.localRotation;
             }
 
             if (leftHand != null)
@@ -126,6 +153,11 @@ namespace TrucoDeMesaOnline
             {
                 rightHandStart = rightHand.localPosition;
             }
+
+            if (faceRig != null)
+            {
+                faceRig.CacheRestPose();
+            }
         }
 
         private void ResetPose()
@@ -134,6 +166,7 @@ namespace TrucoDeMesaOnline
             {
                 head.localScale = headStartScale;
                 head.localPosition = headStartLocalPosition;
+                head.localRotation = headStartRotation;
             }
 
             if (leftHand != null)
@@ -145,7 +178,11 @@ namespace TrucoDeMesaOnline
             {
                 rightHand.localPosition = rightHandStart;
             }
+
+            if (faceRig != null)
+            {
+                faceRig.ResetPose();
+            }
         }
     }
 }
-

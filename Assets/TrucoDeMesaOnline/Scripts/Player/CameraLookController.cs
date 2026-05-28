@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace TrucoDeMesaOnline
 {
@@ -15,7 +16,8 @@ namespace TrucoDeMesaOnline
         [SerializeField] private float mouseSensitivity = 2.2f;
         [SerializeField] private float keyboardYawSpeed = 75f;
         [SerializeField] private float keyboardPitchSpeed = 55f;
-        [SerializeField] private bool lockCursorOnClick = true;
+        [SerializeField] private bool lockCursorOnClick;
+        [SerializeField] private bool mouseLookRequiresRightButton = true;
 
         private float yaw;
         private float pitch;
@@ -78,8 +80,12 @@ namespace TrucoDeMesaOnline
             {
                 try
                 {
-                    yawDelta += Input.GetAxis("Mouse X") * mouseSensitivity;
-                    pitchDelta -= Input.GetAxis("Mouse Y") * mouseSensitivity;
+                    bool canUseMouseLook = !mouseLookRequiresRightButton || Input.GetMouseButton(1);
+                    if (canUseMouseLook && !IsPointerOverUi())
+                    {
+                        yawDelta += Input.GetAxis("Mouse X") * mouseSensitivity;
+                        pitchDelta -= Input.GetAxis("Mouse Y") * mouseSensitivity;
+                    }
                 }
                 catch (InvalidOperationException)
                 {
@@ -119,6 +125,11 @@ namespace TrucoDeMesaOnline
 
             yaw = Mathf.Clamp(yaw + yawDelta, minYaw, maxYaw);
             pitch = Mathf.Clamp(pitch + pitchDelta, minPitch, maxPitch);
+        }
+
+        private static bool IsPointerOverUi()
+        {
+            return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
         }
 
         private void ApplyRotation()

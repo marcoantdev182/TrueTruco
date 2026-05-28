@@ -273,12 +273,115 @@ namespace TrucoDeMesaOnline
         private IEnumerator BotTurnRoutine(SeatId botSeat)
         {
             uiManager.SetStatus(SeatUtility.GetDisplayName(botSeat) + " pensando...");
+            yield return new WaitForSeconds(0.25f);
+
+            TrySendBotSignal(botSeat);
+
             yield return new WaitForSeconds(GameConstants.BotPlayDelay);
 
             if (roundManager.IsRoundActive && turnManager.CurrentSeat == botSeat)
             {
                 TryPlayCard(botSeat, 0);
             }
+        }
+
+        private void TrySendBotSignal(SeatId botSeat)
+        {
+            if (!roundManager.IsRoundActive || botSeat == SeatId.LocalPlayer || UnityEngine.Random.value > 0.72f)
+            {
+                return;
+            }
+
+            SignalType signal = ChooseBotSignal(botSeat);
+            signalManager.SendSignal(botSeat, signal);
+        }
+
+        private SignalType ChooseBotSignal(SeatId botSeat)
+        {
+            IReadOnlyList<Card> botHand = roundManager.GetHand(botSeat);
+            if (UnityEngine.Random.value <= 0.62f && TryChooseTrueSignal(botHand, out SignalType trueSignal))
+            {
+                return trueSignal;
+            }
+
+            return GetRandomSignal();
+        }
+
+        private bool TryChooseTrueSignal(IReadOnlyList<Card> hand, out SignalType signal)
+        {
+            int threeCount = 0;
+
+            for (int i = 0; i < hand.Count; i++)
+            {
+                if (hand[i].Rank == Rank.Three)
+                {
+                    threeCount++;
+                }
+            }
+
+            if (threeCount >= 2)
+            {
+                signal = SignalType.BothShouldersDoubleThree;
+                return true;
+            }
+
+            for (int i = 0; i < hand.Count; i++)
+            {
+                Card card = hand[i];
+                if (CardValueResolver.IsManilha(card, roundManager.Vira))
+                {
+                    signal = GetManilhaSignal(card.Suit);
+                    return true;
+                }
+            }
+
+            for (int i = 0; i < hand.Count; i++)
+            {
+                switch (hand[i].Rank)
+                {
+                    case Rank.Three:
+                        signal = SignalType.OneShoulderThree;
+                        return true;
+                    case Rank.Ace:
+                        signal = SignalType.NoseTouchAce;
+                        return true;
+                    case Rank.King:
+                        signal = SignalType.ChinHandKing;
+                        return true;
+                    case Rank.Queen:
+                        signal = SignalType.EarHandQueen;
+                        return true;
+                    case Rank.Jack:
+                        signal = SignalType.EarToChinJack;
+                        return true;
+                }
+            }
+
+            signal = SignalType.WinkZap;
+            return false;
+        }
+
+        private SignalType GetManilhaSignal(Suit suit)
+        {
+            switch (suit)
+            {
+                case Suit.Clubs:
+                    return SignalType.WinkZap;
+                case Suit.Hearts:
+                    return SignalType.RaiseEyebrowHearts;
+                case Suit.Spades:
+                    return SignalType.PuffCheekSpades;
+                case Suit.Diamonds:
+                    return SignalType.TongueOrNoseDiamonds;
+                default:
+                    return SignalType.WinkZap;
+            }
+        }
+
+        private SignalType GetRandomSignal()
+        {
+            SignalType[] signals = (SignalType[])System.Enum.GetValues(typeof(SignalType));
+            return signals[UnityEngine.Random.Range(0, signals.Length)];
         }
 
         private void OnSignalClicked(SignalType signal)
@@ -290,6 +393,25 @@ namespace TrucoDeMesaOnline
         private void OnSignalSent(SignalEvent signalEvent)
         {
             tableManager.PlayGesture(signalEvent.SourceSeat, signalEvent.Signal);
+
+            if (signalEvent.SourceSeat == SeatId.LocalPlayer)
+            {
+                return;
+            }
+
+            if (tableManager.IsSeatInCameraView(signalEvent.SourceSeat, playerController.PlayerCamera, 34f))
+            {
+                uiManager.SetStatus(
+                    "Voce viu " +
+                    SeatUtility.GetDisplayName(signalEvent.SourceSeat) +
+                    " fazer: " +
+                    SignalDefinition.GetLabel(signalEvent.Signal) +
+                    ".");
+            }
+            else
+            {
+                Debug.Log("[Signal] Fora do seu campo de visao: " + SeatUtility.GetDisplayName(signalEvent.SourceSeat));
+            }
         }
 
         private void OnTrucoClicked()

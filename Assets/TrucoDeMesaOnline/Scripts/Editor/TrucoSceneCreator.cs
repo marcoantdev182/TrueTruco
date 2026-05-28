@@ -17,14 +17,34 @@ namespace TrucoDeMesaOnline.EditorTools
             Directory.CreateDirectory("Assets/Scenes");
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            GameObject root = new GameObject("Local Offline Scene Root");
-            root.AddComponent<LocalOfflineSceneRoot>();
+            GameObject root = CreateRootIfNeeded();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             Selection.activeGameObject = root;
             Debug.Log("Created local MVP scene at " + ScenePath);
         }
+
+        [MenuItem("Truco de Mesa/Add Local MVP To Current Scene")]
+        public static void AddLocalMvpToCurrentScene()
+        {
+            GameObject root = CreateRootIfNeeded();
+            EditorSceneManager.MarkSceneDirty(root.scene);
+            Selection.activeGameObject = root;
+            Debug.Log("Added local MVP root to the current scene. Press Play to start.");
+        }
+
+        private static GameObject CreateRootIfNeeded()
+        {
+            LocalOfflineSceneRoot existing = Object.FindObjectOfType<LocalOfflineSceneRoot>();
+            if (existing != null)
+            {
+                return existing.gameObject;
+            }
+
+            GameObject root = new GameObject("Local Offline Scene Root");
+            root.AddComponent<LocalOfflineSceneRoot>();
+            return root;
+        }
     }
 }
 #endif
-

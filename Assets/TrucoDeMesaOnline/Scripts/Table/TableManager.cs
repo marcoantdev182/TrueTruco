@@ -89,6 +89,34 @@ namespace TrucoDeMesaOnline
             }
         }
 
+        public bool IsSeatInCameraView(SeatId seat, Camera camera, float maxAngle)
+        {
+            if (camera == null || !avatarGestures.TryGetValue(seat, out GestureController gesture))
+            {
+                return false;
+            }
+
+            Vector3 focusPosition = gesture.FocusPosition;
+            Vector3 direction = focusPosition - camera.transform.position;
+            if (direction.sqrMagnitude <= 0.001f)
+            {
+                return false;
+            }
+
+            float angle = Vector3.Angle(camera.transform.forward, direction.normalized);
+            if (angle > maxAngle)
+            {
+                return false;
+            }
+
+            Vector3 viewportPoint = camera.WorldToViewportPoint(focusPosition);
+            return viewportPoint.z > 0f &&
+                   viewportPoint.x > 0.05f &&
+                   viewportPoint.x < 0.95f &&
+                   viewportPoint.y > 0.08f &&
+                   viewportPoint.y < 0.94f;
+        }
+
         private void CreateLighting()
         {
             GameObject lightObject = new GameObject("Warm Table Light");
@@ -202,12 +230,51 @@ namespace TrucoDeMesaOnline
             head.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
             head.GetComponent<Renderer>().sharedMaterial = RuntimeMaterialFactory.GetMaterial("AvatarSkin", new Color(0.76f, 0.58f, 0.43f));
 
+            AvatarFaceRig faceRig = CreateFaceRig(avatar, head.transform);
+
             GameObject leftHand = CreateHand("LeftHand", avatar.transform, new Vector3(-0.38f, 1.18f, 0.18f));
             GameObject rightHand = CreateHand("RightHand", avatar.transform, new Vector3(0.38f, 1.18f, 0.18f));
 
             GestureController gesture = avatar.AddComponent<GestureController>();
             gesture.AssignParts(head.transform, leftHand.transform, rightHand.transform);
+            gesture.AssignFaceRig(faceRig);
             return gesture;
+        }
+
+        private AvatarFaceRig CreateFaceRig(GameObject avatar, Transform head)
+        {
+            Material eyeMaterial = RuntimeMaterialFactory.GetMaterial("FaceBlack", new Color(0.02f, 0.018f, 0.015f));
+            Material browMaterial = RuntimeMaterialFactory.GetMaterial("BrowDark", new Color(0.08f, 0.045f, 0.025f));
+            Material mouthMaterial = RuntimeMaterialFactory.GetMaterial("MouthRed", new Color(0.55f, 0.05f, 0.07f));
+            Material cheekMaterial = RuntimeMaterialFactory.GetMaterial("CheekPink", new Color(0.95f, 0.38f, 0.34f));
+            Material tongueMaterial = RuntimeMaterialFactory.GetMaterial("TonguePink", new Color(0.95f, 0.22f, 0.36f));
+            Material noseMaterial = RuntimeMaterialFactory.GetMaterial("AvatarNose", new Color(0.68f, 0.48f, 0.36f));
+
+            Transform leftEye = CreateFacePart("Left Eye", PrimitiveType.Sphere, head, new Vector3(-0.17f, 0.12f, 0.47f), new Vector3(0.095f, 0.048f, 0.022f), eyeMaterial, Quaternion.identity).transform;
+            Transform rightEye = CreateFacePart("Right Eye", PrimitiveType.Sphere, head, new Vector3(0.17f, 0.12f, 0.47f), new Vector3(0.095f, 0.048f, 0.022f), eyeMaterial, Quaternion.identity).transform;
+            Transform leftBrow = CreateFacePart("Left Brow", PrimitiveType.Cube, head, new Vector3(-0.17f, 0.24f, 0.46f), new Vector3(0.16f, 0.028f, 0.022f), browMaterial, Quaternion.Euler(0f, 0f, -8f)).transform;
+            Transform rightBrow = CreateFacePart("Right Brow", PrimitiveType.Cube, head, new Vector3(0.17f, 0.24f, 0.46f), new Vector3(0.16f, 0.028f, 0.022f), browMaterial, Quaternion.Euler(0f, 0f, 8f)).transform;
+            Transform mouth = CreateFacePart("Mouth", PrimitiveType.Cube, head, new Vector3(0f, -0.16f, 0.49f), new Vector3(0.22f, 0.035f, 0.022f), mouthMaterial, Quaternion.identity).transform;
+            Transform nose = CreateFacePart("Nose", PrimitiveType.Sphere, head, new Vector3(0f, -0.01f, 0.52f), new Vector3(0.08f, 0.10f, 0.07f), noseMaterial, Quaternion.identity).transform;
+            Transform leftCheek = CreateFacePart("Left Cheek", PrimitiveType.Sphere, head, new Vector3(-0.24f, -0.07f, 0.47f), new Vector3(0.085f, 0.055f, 0.025f), cheekMaterial, Quaternion.identity).transform;
+            Transform rightCheek = CreateFacePart("Right Cheek", PrimitiveType.Sphere, head, new Vector3(0.24f, -0.07f, 0.47f), new Vector3(0.085f, 0.055f, 0.025f), cheekMaterial, Quaternion.identity).transform;
+            Transform tongue = CreateFacePart("Tongue", PrimitiveType.Cube, head, new Vector3(0f, -0.235f, 0.51f), new Vector3(0.09f, 0.04f, 0.025f), tongueMaterial, Quaternion.identity).transform;
+
+            AvatarFaceRig faceRig = avatar.AddComponent<AvatarFaceRig>();
+            faceRig.AssignParts(leftEye, rightEye, leftBrow, rightBrow, mouth, nose, leftCheek, rightCheek, tongue);
+            return faceRig;
+        }
+
+        private GameObject CreateFacePart(string partName, PrimitiveType primitiveType, Transform parent, Vector3 localPosition, Vector3 localScale, Material material, Quaternion localRotation)
+        {
+            GameObject part = GameObject.CreatePrimitive(primitiveType);
+            part.name = partName;
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localRotation = localRotation;
+            part.transform.localScale = localScale;
+            part.GetComponent<Renderer>().sharedMaterial = material;
+            return part;
         }
 
         private GameObject CreateHand(string name, Transform parent, Vector3 localPosition)
