@@ -7,6 +7,7 @@ namespace TrucoDeMesaOnline
     {
         private readonly Dictionary<SeatId, GestureController> avatarGestures = new Dictionary<SeatId, GestureController>();
         private readonly Dictionary<SeatId, List<PlayingCardView>> hiddenSeatCards = new Dictionary<SeatId, List<PlayingCardView>>();
+        private readonly List<GameObject> localHandCardObjects = new List<GameObject>();
         private readonly List<PlayingCardView> playedCardViews = new List<PlayingCardView>();
 
         private Transform generatedRoot;
@@ -27,6 +28,7 @@ namespace TrucoDeMesaOnline
             CreateLighting();
             CreateEnvironment();
             CreateTable();
+            CreateWorldControlHint();
             CreateSeatsAndAvatars(seatManager);
         }
 
@@ -83,6 +85,25 @@ namespace TrucoDeMesaOnline
             }
         }
 
+        public void SetLocalHandCards(IReadOnlyList<Card> cards, bool canPlay)
+        {
+            ClearLocalHandCards();
+
+            for (int i = 0; i < cards.Count; i++)
+            {
+                GameObject root = new GameObject("Local Hand Card " + (i + 1) + " - " + cards[i].ShortName);
+                root.transform.SetParent(cardsRoot, false);
+                root.transform.position = GetLocalHandCardPosition(i, cards.Count);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+
+                PlayingCardView view = root.AddComponent<PlayingCardView>();
+                view.Initialize(cards[i], true);
+
+                CreateLocalCardKeyLabel(root.transform, i + 1, canPlay);
+                localHandCardObjects.Add(root);
+            }
+        }
+
         public void ClearPlayedCards()
         {
             for (int i = 0; i < playedCardViews.Count; i++)
@@ -99,6 +120,7 @@ namespace TrucoDeMesaOnline
         public void ClearAllCards()
         {
             ClearPlayedCards();
+            ClearLocalHandCards();
             ClearAllHiddenCards();
 
             if (viraView != null)
@@ -106,6 +128,19 @@ namespace TrucoDeMesaOnline
                 DestroyObject(viraView.gameObject);
                 viraView = null;
             }
+        }
+
+        private void ClearLocalHandCards()
+        {
+            for (int i = 0; i < localHandCardObjects.Count; i++)
+            {
+                if (localHandCardObjects[i] != null)
+                {
+                    DestroyObject(localHandCardObjects[i]);
+                }
+            }
+
+            localHandCardObjects.Clear();
         }
 
         private void ClearSeatHiddenCards(SeatId seat)
@@ -223,6 +258,23 @@ namespace TrucoDeMesaOnline
             pedestal.transform.position = new Vector3(0f, 0.38f, 0f);
             pedestal.transform.localScale = new Vector3(0.18f, 0.38f, 0.18f);
             pedestal.GetComponent<Renderer>().sharedMaterial = RuntimeMaterialFactory.GetMaterial("TableWood", new Color(0.42f, 0.22f, 0.09f));
+        }
+
+        private void CreateWorldControlHint()
+        {
+            GameObject hintObject = new GameObject("World Controls Hint");
+            hintObject.transform.SetParent(generatedRoot, false);
+            hintObject.transform.position = new Vector3(-1.52f, 1.18f, -1.38f);
+            hintObject.transform.rotation = Quaternion.Euler(18f, 28f, 0f);
+            hintObject.transform.localScale = Vector3.one * 0.11f;
+
+            TextMesh hint = hintObject.AddComponent<TextMesh>();
+            hint.text = "Sua mao: 1  2  3\nSinais: Q E R F\nZ X C V B N";
+            hint.anchor = TextAnchor.MiddleLeft;
+            hint.alignment = TextAlignment.Left;
+            hint.characterSize = 0.75f;
+            hint.fontSize = 44;
+            hint.color = new Color(0.92f, 0.86f, 0.66f);
         }
 
         private void CreateSeatsAndAvatars(SeatManager seatManager)
@@ -392,6 +444,30 @@ namespace TrucoDeMesaOnline
                 default:
                     return new Vector3(offset, y, -0.98f);
             }
+        }
+
+        private Vector3 GetLocalHandCardPosition(int index, int count)
+        {
+            float y = GameConstants.TableHeight + 0.12f;
+            float offset = (index - (count - 1) * 0.5f) * 0.58f;
+            return new Vector3(offset, y, -1.08f);
+        }
+
+        private void CreateLocalCardKeyLabel(Transform parent, int keyNumber, bool canPlay)
+        {
+            GameObject labelObject = new GameObject("Key " + keyNumber);
+            labelObject.transform.SetParent(parent, false);
+            labelObject.transform.localPosition = new Vector3(-0.19f, 0.055f, -0.27f);
+            labelObject.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            labelObject.transform.localScale = Vector3.one * 0.065f;
+
+            TextMesh label = labelObject.AddComponent<TextMesh>();
+            label.text = keyNumber.ToString();
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.characterSize = 1.15f;
+            label.fontSize = 56;
+            label.color = canPlay ? new Color(0.04f, 0.04f, 0.04f) : new Color(0.35f, 0.35f, 0.35f);
         }
 
         private float GetPlayedCardYaw(SeatId seat)

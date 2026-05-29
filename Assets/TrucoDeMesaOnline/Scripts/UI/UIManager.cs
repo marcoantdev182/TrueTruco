@@ -19,6 +19,7 @@ namespace TrucoDeMesaOnline
         private Text turnText;
         private Text statusText;
         private Text viraText;
+        private Text helpText;
         private readonly List<Button> cardButtons = new List<Button>();
         private Font cachedFont;
 
@@ -41,6 +42,7 @@ namespace TrucoDeMesaOnline
             BuildHandPanel(canvasObject.transform);
             BuildActionPanel(canvasObject.transform);
             BuildSignalPanel(canvasObject.transform);
+            BuildHelpPanel(canvasObject.transform);
         }
 
         public void SetScore(int localScore, int rivalScore, int roundValue)
@@ -88,7 +90,7 @@ namespace TrucoDeMesaOnline
             for (int i = 0; i < hand.Count; i++)
             {
                 int capturedIndex = i;
-                Button button = CreateButton(handPanel, hand[i].ShortName + "\n" + hand[i].DisplayName, new Vector2(150f, 88f));
+                Button button = CreateButton(handPanel, (i + 1) + "  " + hand[i].ShortName + "\n" + hand[i].DisplayName, new Vector2(150f, 88f));
                 button.interactable = canPlay;
                 button.onClick.AddListener(() => CardClicked?.Invoke(capturedIndex));
                 cardButtons.Add(button);
@@ -128,7 +130,7 @@ namespace TrucoDeMesaOnline
             viraText = CreateText(topBar, "Vira: -", 22, TextAnchor.MiddleLeft);
             AddLayout(viraText.gameObject, 360f, 56f);
 
-            statusText = CreateText(topBar, "Clique em uma carta para jogar.", 22, TextAnchor.MiddleLeft);
+            statusText = CreateText(topBar, "Jogue com 1/2/3 ou clique nas cartas.", 22, TextAnchor.MiddleLeft);
             AddLayout(statusText.gameObject, 760f, 56f);
         }
 
@@ -177,7 +179,7 @@ namespace TrucoDeMesaOnline
             signalPanel.anchorMax = new Vector2(1f, 0.5f);
             signalPanel.pivot = new Vector2(1f, 0.5f);
             signalPanel.anchoredPosition = new Vector2(-18f, -10f);
-            signalPanel.sizeDelta = new Vector2(294f, 520f);
+            signalPanel.sizeDelta = new Vector2(340f, 560f);
 
             VerticalLayoutGroup layout = signalPanel.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.childAlignment = TextAnchor.UpperCenter;
@@ -187,14 +189,39 @@ namespace TrucoDeMesaOnline
             layout.childForceExpandHeight = false;
 
             Text title = CreateText(signalPanel, "Sinais", 24, TextAnchor.MiddleCenter);
-            AddLayout(title.gameObject, 260f, 34f);
+            AddLayout(title.gameObject, 300f, 34f);
 
+            int shortcutIndex = 0;
             foreach (SignalType signal in Enum.GetValues(typeof(SignalType)))
             {
                 SignalType capturedSignal = signal;
-                Button button = CreateButton(signalPanel, SignalDefinition.GetLabel(signal), new Vector2(260f, 34f));
+                string shortcut = GetSignalShortcutLabel(shortcutIndex);
+                Button button = CreateButton(signalPanel, shortcut + "  " + SignalDefinition.GetLabel(signal), new Vector2(300f, 34f));
                 button.onClick.AddListener(() => SignalClicked?.Invoke(capturedSignal));
+                shortcutIndex++;
             }
+        }
+
+        private void BuildHelpPanel(Transform parent)
+        {
+            RectTransform helpPanel = CreatePanel(parent, "Help Panel", new Color(0.05f, 0.05f, 0.05f, 0.68f));
+            helpPanel.anchorMin = new Vector2(0f, 1f);
+            helpPanel.anchorMax = new Vector2(0f, 1f);
+            helpPanel.pivot = new Vector2(0f, 1f);
+            helpPanel.anchoredPosition = new Vector2(18f, -92f);
+            helpPanel.sizeDelta = new Vector2(420f, 118f);
+
+            helpText = CreateText(
+                helpPanel,
+                "Cartas: 1, 2, 3\nSinais: Q E R F / Z X C V / B N\nOlhar: setas/WASD ou botao direito do mouse",
+                20,
+                TextAnchor.MiddleLeft);
+
+            RectTransform textRect = helpText.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(14f, 8f);
+            textRect.offsetMax = new Vector2(-14f, -8f);
         }
 
         private RectTransform CreatePanel(Transform parent, string panelName, Color color)
@@ -283,6 +310,12 @@ namespace TrucoDeMesaOnline
             }
 
             return cachedFont;
+        }
+
+        private static string GetSignalShortcutLabel(int index)
+        {
+            string[] shortcuts = { "Q", "E", "R", "F", "Z", "X", "C", "V", "B", "N" };
+            return index >= 0 && index < shortcuts.Length ? shortcuts[index] : "-";
         }
 
         private void ClearExistingHud()

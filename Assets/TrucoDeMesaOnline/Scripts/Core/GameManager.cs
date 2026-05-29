@@ -27,6 +27,7 @@ namespace TrucoDeMesaOnline
         private bool matchStarted;
         private Coroutine botTurnRoutine;
         private Coroutine delayedRoundRoutine;
+        private bool legacyInputAvailable = true;
 
         public void ConfigureForLocalOffline()
         {
@@ -44,6 +45,24 @@ namespace TrucoDeMesaOnline
             if (autoStart && gameMode == GameMode.LocalOffline)
             {
                 StartLocalGame();
+            }
+        }
+
+        private void Update()
+        {
+            if (!legacyInputAvailable || !matchStarted)
+            {
+                return;
+            }
+
+            try
+            {
+                ReadCardShortcuts();
+                ReadSignalShortcuts();
+            }
+            catch (System.InvalidOperationException)
+            {
+                legacyInputAvailable = false;
             }
         }
 
@@ -398,12 +417,14 @@ namespace TrucoDeMesaOnline
         {
             bool canPlay = roundManager.IsRoundActive && turnManager.IsLocalTurn;
             uiManager.RefreshHand(hand, canPlay);
+            tableManager.SetLocalHandCards(hand, canPlay);
         }
 
         private void OnTurnChanged(SeatId currentSeat)
         {
             uiManager.SetTurn(currentSeat);
             uiManager.SetHandInteractable(roundManager.IsRoundActive && currentSeat == SeatId.LocalPlayer);
+            tableManager.SetLocalHandCards(handManager.LocalHand, roundManager.IsRoundActive && currentSeat == SeatId.LocalPlayer);
         }
 
         private void OnScoresChanged()
@@ -417,6 +438,57 @@ namespace TrucoDeMesaOnline
             uiManager.SetScore(scoreManager.LocalTeamScore, scoreManager.RivalTeamScore, scoreManager.CurrentRoundValue);
             uiManager.SetVira(roundManager.Vira);
             uiManager.SetHandInteractable(roundManager.IsRoundActive && turnManager.IsLocalTurn);
+            tableManager.SetLocalHandCards(handManager.LocalHand, roundManager.IsRoundActive && turnManager.IsLocalTurn);
+        }
+
+        private void ReadCardShortcuts()
+        {
+            if (!roundManager.IsRoundActive || !turnManager.IsLocalTurn)
+            {
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+            {
+                handManager.RequestPlayCard(0);
+            }
+            else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+            {
+                handManager.RequestPlayCard(1);
+            }
+            else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+            {
+                handManager.RequestPlayCard(2);
+            }
+        }
+
+        private void ReadSignalShortcuts()
+        {
+            KeyCode[] keys =
+            {
+                KeyCode.Q,
+                KeyCode.E,
+                KeyCode.R,
+                KeyCode.F,
+                KeyCode.Z,
+                KeyCode.X,
+                KeyCode.C,
+                KeyCode.V,
+                KeyCode.B,
+                KeyCode.N
+            };
+
+            SignalType[] signals = (SignalType[])System.Enum.GetValues(typeof(SignalType));
+            int count = Mathf.Min(keys.Length, signals.Length);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (Input.GetKeyDown(keys[i]))
+                {
+                    OnSignalClicked(signals[i]);
+                    return;
+                }
+            }
         }
 
         private void RefreshBotHandViews()
